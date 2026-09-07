@@ -5,27 +5,29 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Minecraft Log Scanner</title>
 <style>
-body{margin:0;min-height:100vh;background:#111;color:#fff;font-family:Arial,sans-serif;display:flex;justify-content:center;padding:40px 15px}
-.container{width:100%;max-width:750px}
-h1{text-align:center;margin-bottom:8px}.sub{text-align:center;color:#aaa;margin-bottom:30px}
-.drop{border:2px dashed #555;border-radius:15px;padding:55px 20px;text-align:center;cursor:pointer;background:#181818;transition:.2s}
-.drop:hover,.drop.dragover{border-color:#aaa;background:#202020}input{display:none}
-#result{margin-top:25px}.status{padding:15px;border-radius:10px;background:#1d1d1d;margin-bottom:15px}
-.warning{background:#351313;border-left:5px solid red;padding:15px;margin:10px 0;border-radius:7px}
-.warning strong{color:#ff4b4b}.line{color:#aaa;font-size:13px;margin-top:6px;word-break:break-all}
-.clean{background:#143119;border-left:5px solid #35c759;padding:15px;border-radius:7px}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;padding:16px;background:radial-gradient(circle at top,#4a1238 0,#1d0718 42%,#090509 100%);color:#fff;font-family:Arial,sans-serif}
+.container{width:100%;max-width:620px;margin:0 auto;padding:8px 0 30px}
+h1{text-align:center;font-size:29px;margin:8px 0 7px}.sub{text-align:center;color:#e7b7d5;font-size:14px;line-height:1.5;margin-bottom:22px}
+.drop{border:1px solid #d64a9b;border-radius:22px;padding:30px 16px;text-align:center;background:rgba(35,10,29,.92);box-shadow:0 12px 40px rgba(255,0,140,.14)}
+.file-icon{font-size:56px;margin-bottom:10px}.choose{display:flex;align-items:center;justify-content:center;width:100%;min-height:68px;border-radius:16px;background:linear-gradient(135deg,#ff4db3,#d92783);border:2px solid #ff9bd4;color:#fff;font-size:19px;font-weight:900;cursor:pointer;-webkit-tap-highlight-color:transparent;box-shadow:0 8px 22px rgba(255,50,170,.25)}
+.choose:active{transform:scale(.98)}.hint{color:#cfa9c0;font-size:13px;line-height:1.5;margin-top:12px}input{display:none}
+#result{margin-top:18px}.status,.jar-box,.warning,.clean{padding:15px;border-radius:13px;margin-bottom:12px;line-height:1.6;word-break:break-word}
+.status{background:#21101c;border:1px solid #5e2949}.jar-box{background:#160d14;border:1px solid #8c3a67}.jar-title{font-size:17px;font-weight:900;color:#ff83c8;margin-bottom:9px}.jar-list{margin:0;padding-left:20px}.jar-list li{margin:6px 0;color:#f5d7e8;word-break:break-all}.jar-count{color:#cda7bc;font-size:13px;margin-top:9px}
+.warning{background:#3b101d;border-left:5px solid #ff2f72}.warning strong{color:#ff5c91}.line{color:#cdb7c4;font-size:12px;margin-top:7px;word-break:break-all}.clean{background:#182515;border-left:5px solid #66d46f}.scan-title{color:#ff83c8;font-weight:900;margin-bottom:10px}
+@media(max-width:480px){body{padding:10px}.container{padding-top:2px}h1{font-size:25px}.drop{padding:28px 13px}.choose{min-height:72px;font-size:18px}}
 </style>
 </head>
 <body>
 <div class="container">
 <h1>⛏️ Minecraft Log Scanner</h1>
 <div class="sub">Kiểm tra latest.log để tìm client/mod trong blacklist</div>
-<label class="drop" id="drop">
-<div style="font-size:45px">📄</div>
-<div>Kéo file <b>latest.log</b> vào đây</div>
-<div style="color:#888;margin-top:8px">hoặc bấm để chọn file</div>
+<div class="drop" id="drop">
+<div class="file-icon">📄</div>
+<label class="choose" for="file">📁 CHỌN FILE LOG</label>
+<div class="hint">Chọn <b>latest.log</b> trên điện thoại<br>PC vẫn hỗ trợ kéo &amp; thả file</div>
 <input type="file" id="file" accept=".log,.txt">
-</label>
+</div>
 <div id="result"></div>
 </div>
 <script>
@@ -59,7 +61,6 @@ const blacklist=[
 ];
 
 const drop=document.getElementById("drop"),fileInput=document.getElementById("file"),result=document.getElementById("result");
-drop.addEventListener("click",()=>fileInput.click());
 fileInput.addEventListener("change",()=>{if(fileInput.files.length)scanFile(fileInput.files[0])});
 drop.addEventListener("dragover",e=>{e.preventDefault();drop.classList.add("dragover")});
 drop.addEventListener("dragleave",()=>drop.classList.remove("dragover"));
@@ -69,6 +70,7 @@ function scanFile(file){
 result.innerHTML=`<div class="status">🔎 Đang scan <b>${escapeHTML(file.name)}</b>...</div>`;
 const reader=new FileReader();
 reader.onload=e=>{
+window.__scanText=e.target.result;
 const lines=e.target.result.split(/\r?\n/),detections=[];
 blacklist.forEach(rule=>{
 const matches=[];
@@ -84,18 +86,19 @@ reader.onerror=()=>result.innerHTML=`<div class="warning"><strong>❌ Không th�
 reader.readAsText(file);
 }
 
-function showResults(filename,totalLines,detections){
-let html=`<div class="status">📄 File: <b>${escapeHTML(filename)}</b><br>📊 Số dòng: <b>${totalLines}</b><br>🔎 Phát hiện: <b>${detections.length}</b></div>`;
-if(!detections.length)html+=`<div class="clean">🟢 <b>Không tìm thấy tên nào trong blacklist.</b><br><small>Điều này không chứng minh chắc chắn client/mod không tồn tại.</small></div>`;
-else{
-html+=`<div style="margin-bottom:15px;color:#ff4b4b;font-weight:bold">⚠️ PHÁT HIỆN ${detections.length} MỤC CẦN KIỂM TRA</div>`;
-detections.forEach(d=>{
-html+=`<div class="warning">🔴 <strong>${escapeHTML(d.rule.name)}</strong><div style="margin-top:5px">Loại: ${escapeHTML(d.rule.type)}</div><div style="margin-top:10px">Xuất hiện ${d.matches.length} lần</div>`;
-d.matches.slice(0,10).forEach(m=>html+=`<div class="line">Line ${m.lineNumber}: ${escapeHTML(m.text)}</div>`);
-if(d.matches.length>10)html+=`<div class="line">... và thêm ${d.matches.length-10} dòng khác</div>`;
-html+=`</div>`;
-});
+function extractJars(text){
+const jars=new Set();
+const re=/([A-Za-z0-9._+()\- \[\]]+\.jar)\b/gi;let m;
+while((m=re.exec(text))!==null){let jar=m[1].trim().replace(/^["'`]+|["'`]+$/g,"");jar=jar.replace(/^[\\/]+/,"");if(jar.length>2)jars.add(jar)}
+return [...jars].sort((a,b)=>a.localeCompare(b));
 }
+function showResults(filename,totalLines,detections){
+const jars=extractJars(window.__scanText||"");
+let html=`<div class="status">📄 File: <b>${escapeHTML(filename)}</b><br>📊 Số dòng: <b>${totalLines}</b><br>🔎 Blacklist phát hiện: <b>${detections.length}</b></div>`;
+html+=`<div class="jar-box"><div class="jar-title">📦 TẤT CẢ FILE .JAR TÌM THẤY TRONG LOG</div>`;
+if(jars.length){html+=`<ul class="jar-list">`;jars.forEach(j=>html+=`<li>${escapeHTML(j)}</li>`);html+=`</ul><div class="jar-count">Tổng cộng: <b>${jars.length}</b> file .jar</div>`}else{html+=`<div class="jar-count">Không tìm thấy chuỗi tên file .jar trong log.</div>`}
+html+=`</div>`;
+if(!detections.length){html+=`<div class="clean">🟢 <b>Không tìm thấy tên nào trong blacklist.</b><br><small>Việc không phát hiện không chứng minh chắc chắn client/mod không tồn tại.</small></div>`}else{html+=`<div class="scan-title">⚠️ PHÁT HIỆN ${detections.length} MỤC CẦN KIỂM TRA</div>`;detections.forEach(d=>{html+=`<div class="warning">🔴 <strong>${escapeHTML(d.rule.name)}</strong><div style="margin-top:5px">Loại: ${escapeHTML(d.rule.type)}</div><div style="margin-top:10px">Xuất hiện ${d.matches.length} lần</div>`;d.matches.slice(0,10).forEach(m=>html+=`<div class="line">Line ${m.lineNumber}: ${escapeHTML(m.text)}</div>`);if(d.matches.length>10)html+=`<div class="line">... và thêm ${d.matches.length-10} dòng khác</div>`;html+=`</div>`})}
 result.innerHTML=html;
 }
 function escapeHTML(text){return text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
