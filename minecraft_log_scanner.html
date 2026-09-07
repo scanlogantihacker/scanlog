@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minecraft Log Scanner</title>
+<style>
+body{margin:0;min-height:100vh;background:#111;color:#fff;font-family:Arial,sans-serif;display:flex;justify-content:center;padding:40px 15px}
+.container{width:100%;max-width:750px}
+h1{text-align:center;margin-bottom:8px}.sub{text-align:center;color:#aaa;margin-bottom:30px}
+.drop{border:2px dashed #555;border-radius:15px;padding:55px 20px;text-align:center;cursor:pointer;background:#181818;transition:.2s}
+.drop:hover,.drop.dragover{border-color:#aaa;background:#202020}input{display:none}
+#result{margin-top:25px}.status{padding:15px;border-radius:10px;background:#1d1d1d;margin-bottom:15px}
+.warning{background:#351313;border-left:5px solid red;padding:15px;margin:10px 0;border-radius:7px}
+.warning strong{color:#ff4b4b}.line{color:#aaa;font-size:13px;margin-top:6px;word-break:break-all}
+.clean{background:#143119;border-left:5px solid #35c759;padding:15px;border-radius:7px}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>⛏️ Minecraft Log Scanner</h1>
+<div class="sub">Kiểm tra latest.log để tìm client/mod trong blacklist</div>
+<label class="drop" id="drop">
+<div style="font-size:45px">📄</div>
+<div>Kéo file <b>latest.log</b> vào đây</div>
+<div style="color:#888;margin-top:8px">hoặc bấm để chọn file</div>
+<input type="file" id="file" accept=".log,.txt">
+</label>
+<div id="result"></div>
+</div>
+<script>
+const blacklist=[
+{names:["meteor client","meteor-client","meteorclient"],name:"Meteor Client",type:"Client"},
+{names:["wurst"],name:"Wurst",type:"Client"},
+{names:["liquidbounce","liquid-bounce"],name:"LiquidBounce",type:"Client"},
+{names:["impact client","impact-client","impactclient"],name:"Impact Client",type:"Client"},
+{names:["aristois"],name:"Aristois",type:"Client"},
+{names:["bleachhack"],name:"BleachHack",type:"Client"},
+{names:["inertia"],name:"Inertia",type:"Client"},
+{names:["future client","future-client"],name:"Future Client",type:"Client"},
+{names:["rusherhack","rusher-hack"],name:"RusherHack",type:"Client"},
+{names:["boze"],name:"Boze",type:"Client"},
+{names:["augustus"],name:"Augustus",type:"Client"},
+{names:["tenacity"],name:"Tenacity",type:"Client"},
+{names:["rise client","rise-client"],name:"Rise",type:"Client"},
+{names:["exhibition"],name:"Exhibition",type:"Client"},
+{names:["kami"],name:"KAMI",type:"Client"},
+{names:["vape"],name:"Vape",type:"Client"},
+{names:["doomsday"],name:"Doomsday",type:"Client"},
+{names:["thunderhack","thunder-hack"],name:"ThunderHack",type:"Client"},
+{names:["catlean","catlean client"],name:"CatLean Client",type:"Client"},
+{names:["krypton client","krypton-client"],name:"Krypton Client",type:"Client"},
+{names:["thunder client","thunder-client"],name:"Thunder Client",type:"Client"},
+{names:["dd client","dd-client"],name:"DD Client",type:"Client"},
+{names:["mouse tweaks","mouse-tweaks","mousetweaks"],name:"Mouse Tweaks",type:"Forbidden Mod"},
+{names:["macro mod","macro-mod"],name:"Macro Mod",type:"Macro"},
+{names:["autoclicker","auto-clicker","auto clicker"],name:"Auto Clicker",type:"Macro"},
+{names:["keybind macro","keybind-macro"],name:"Keybind Macro",type:"Macro"}
+];
+
+const drop=document.getElementById("drop"),fileInput=document.getElementById("file"),result=document.getElementById("result");
+drop.addEventListener("click",()=>fileInput.click());
+fileInput.addEventListener("change",()=>{if(fileInput.files.length)scanFile(fileInput.files[0])});
+drop.addEventListener("dragover",e=>{e.preventDefault();drop.classList.add("dragover")});
+drop.addEventListener("dragleave",()=>drop.classList.remove("dragover"));
+drop.addEventListener("drop",e=>{e.preventDefault();drop.classList.remove("dragover");if(e.dataTransfer.files[0])scanFile(e.dataTransfer.files[0])});
+
+function scanFile(file){
+result.innerHTML=`<div class="status">🔎 Đang scan <b>${escapeHTML(file.name)}</b>...</div>`;
+const reader=new FileReader();
+reader.onload=e=>{
+const lines=e.target.result.split(/\r?\n/),detections=[];
+blacklist.forEach(rule=>{
+const matches=[];
+lines.forEach((line,index)=>{
+const lower=line.toLowerCase();
+if(rule.names.some(k=>lower.includes(k.toLowerCase())))matches.push({lineNumber:index+1,text:line});
+});
+if(matches.length)detections.push({rule,matches});
+});
+showResults(file.name,lines.length,detections);
+};
+reader.onerror=()=>result.innerHTML=`<div class="warning"><strong>❌ Không thể đọc file</strong></div>`;
+reader.readAsText(file);
+}
+
+function showResults(filename,totalLines,detections){
+let html=`<div class="status">📄 File: <b>${escapeHTML(filename)}</b><br>📊 Số dòng: <b>${totalLines}</b><br>🔎 Phát hiện: <b>${detections.length}</b></div>`;
+if(!detections.length)html+=`<div class="clean">🟢 <b>Không tìm thấy tên nào trong blacklist.</b><br><small>Điều này không chứng minh chắc chắn client/mod không tồn tại.</small></div>`;
+else{
+html+=`<div style="margin-bottom:15px;color:#ff4b4b;font-weight:bold">⚠️ PHÁT HIỆN ${detections.length} MỤC CẦN KIỂM TRA</div>`;
+detections.forEach(d=>{
+html+=`<div class="warning">🔴 <strong>${escapeHTML(d.rule.name)}</strong><div style="margin-top:5px">Loại: ${escapeHTML(d.rule.type)}</div><div style="margin-top:10px">Xuất hiện ${d.matches.length} lần</div>`;
+d.matches.slice(0,10).forEach(m=>html+=`<div class="line">Line ${m.lineNumber}: ${escapeHTML(m.text)}</div>`);
+if(d.matches.length>10)html+=`<div class="line">... và thêm ${d.matches.length-10} dòng khác</div>`;
+html+=`</div>`;
+});
+}
+result.innerHTML=html;
+}
+function escapeHTML(text){return text.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#039;")}
+</script>
+</body>
+</html>
